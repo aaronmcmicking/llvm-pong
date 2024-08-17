@@ -16,6 +16,8 @@ target triple = "x86_64-pc-linux-gnu"
 @RLCOLOR_GREEN  = constant i32 4281394176
 
 @PADDLE_SPEED = constant i32 30
+@PADDLE_WIDTH = constant i32 15
+@PADDLE_HEIGHT = constant i32 100
 
 ; external functions
 declare void @InitWindow(i32, i32, i8*) 
@@ -35,20 +37,6 @@ declare i1 @IsKeyDown(i32)
 declare i32 @printf(i8* noundef, ...) 
 
 ; local functions
-;define i32 @move_paddle(i32* _key, i32 paddle_pos){ 
-;    %key_down = call i1 @KeyIsDown(i32* _key)
-;    br i1 %key_down, label %do_move, label %end_move
-;do_move:
-;  %vel = load i32, i32* @PADDLE_SPEED
-;  %new_paddle_pos = add i32 %paddle_pos, vel
-;  br %end_move
-;do_not_move
-;  %new_paddle_pos = i32 %paddle_pos
-;  br %end_move
-;end_move:
-;    ret i32 %new_paddle_pos
-;}
-
 define i32 @cond_add(i1 %condition, i32 %base, i32 %addition){
   br i1 %condition, label %_add, label %_no_add
 _add:
@@ -77,17 +65,30 @@ define dso_local i32 @main() {
   %win_height_loc = load i32, i32* %win_height 
   call void @InitWindow(i32 %win_width_loc, i32 %win_height_loc, i8* getelementptr ([11 x i8], [11 x i8]* @WINDOW_TITLE, i64 0, i64 0))
   call void @SetTargetFPS(i32 60)
-  br label %rec_setup
+  br label %left_paddle_setup
 
-rec_setup:
-  %rec_width = alloca i32
-  %rec_height = alloca i32
-  %rec_x = alloca i32
-  %rec_y = alloca i32
-  store i32 100, i32* %rec_width
-  store i32 100, i32* %rec_height
-  store i32 50, i32* %rec_x
-  store i32 50, i32* %rec_y
+left_paddle_setup:
+  %paddle_width = load i32, i32* @PADDLE_WIDTH
+  %paddle_height = load i32, i32* @PADDLE_HEIGHT
+  %left_paddle_width = alloca i32
+  %left_paddle_height = alloca i32
+  %left_paddle_x = alloca i32
+  %left_paddle_y = alloca i32
+  store i32 %paddle_width, i32* %left_paddle_width
+  store i32 %paddle_height, i32* %left_paddle_height
+  store i32 50, i32* %left_paddle_x
+  store i32 50, i32* %left_paddle_y
+  br label %right_paddle_setup
+
+right_paddle_setup:
+  %right_paddle_width = alloca i32
+  %right_paddle_height = alloca i32
+  %right_paddle_x = alloca i32
+  %right_paddle_y = alloca i32
+  store i32 %paddle_width, i32* %right_paddle_width
+  store i32 %paddle_height, i32* %right_paddle_height
+  store i32 950, i32* %right_paddle_x
+  store i32 50, i32* %right_paddle_y
   br label %main_window_loop_check_conds
 
 main_window_loop_check_conds:                                                
@@ -96,40 +97,62 @@ main_window_loop_check_conds:
   br i1 %win_should_not_close, label %main_window_loop_body, label %main_window_loop_end
 
 main_window_loop_body:
-  %loc_rec_x = load i32, i32* %rec_x
-  %loc_rec_y = load i32, i32* %rec_y
-  %loc_rec_width = load i32, i32* %rec_width
-  %loc_rec_height = load i32, i32* %rec_height
-  %rl_black = load i32, i32* @RLCOLOR_BLACK
-  %rec_col = load i32, i32* @RLCOLOR_BLUE
-  call void @BeginDrawing()
-  call void @ClearBackground(i32 %rl_black)
-  call void @DrawRectangle(i32 %loc_rec_x, i32 %loc_rec_y, i32 %loc_rec_width, i32 %loc_rec_height, i32 %rec_col)
-  call void @EndDrawing()
-  ;%key_w = load i32, i32* @KEY_W
   br label %move_left_paddle
-  ;%w_pressed = call i1 @IsKeyDown(i32 %key_w)
-  ;br i1 %w_pressed, label %increment_rec, label %main_window_loop_check_conds
-  ;br label %increment_rec
 
 increment_rec:
-  %loc_rec_x1 = load i32, i32* %rec_x
-  %inc_rec_x = add i32 %loc_rec_x1, 1
-  store i32 %inc_rec_x, i32* %rec_x
+  %loc_left_paddle_x1 = load i32, i32* %left_paddle_x
+  %inc_left_paddle_x = add i32 %loc_left_paddle_x1, 1
+  store i32 %inc_left_paddle_x, i32* %left_paddle_x
   br label %main_window_loop_check_conds
 
 move_left_paddle:
-  ;%new_lp_speed = call i32 move_paddle(i32* @KEY_W, i32 %rec_y) 
+  ;%new_lp_speed = call i32 move_paddle(i32* @KEY_W, i32 %left_paddle_y) 
   %key_w = load i32, i32* @KEY_W
   %key_s = load i32, i32* @KEY_S
   %paddle_vel = load i32, i32* @PADDLE_SPEED
   %w_pressed = call i1 @IsKeyDown(i32 %key_w)
   %s_pressed = call i1 @IsKeyDown(i32 %key_s)
-  %lp_pos = load i32, i32* %rec_y
+  %lp_pos = load i32, i32* %left_paddle_y
   %lp_pos_moved_down = call i32 @cond_add(i1 %s_pressed, i32 %lp_pos, i32 %paddle_vel)
   %lp_pos_moved_up = call i32 @cond_sub(i1 %w_pressed, i32 %lp_pos_moved_down, i32 %paddle_vel)
-  store i32 %lp_pos_moved_up, i32* %rec_y
+  store i32 %lp_pos_moved_up, i32* %left_paddle_y
+  br label %move_right_paddle
+
+move_right_paddle:
+  ;%new_lp_speed = call i32 move_paddle(i32* @KEY_W, i32 %right_paddle_y) 
+  %key_up = load i32, i32* @KEY_UP
+  %key_down = load i32, i32* @KEY_DOWN
+  ;%paddle_vel = load i32, i32* @PADDLE_SPEED
+  %up_pressed = call i1 @IsKeyDown(i32 %key_up)
+  %down_pressed = call i1 @IsKeyDown(i32 %key_down)
+  %rp_pos = load i32, i32* %right_paddle_y
+  %rp_pos_moved_down = call i32 @cond_add(i1 %down_pressed, i32 %rp_pos, i32 %paddle_vel)
+  %rp_pos_moved_up = call i32 @cond_sub(i1 %up_pressed, i32 %rp_pos_moved_down, i32 %paddle_vel)
+  store i32 %rp_pos_moved_up, i32* %right_paddle_y
+  br label %render
+
+render:
+  %rl_black = load i32, i32* @RLCOLOR_BLACK
+  %paddle_col = load i32, i32* @RLCOLOR_WHITE
+  %loc_left_paddle_x = load i32, i32* %left_paddle_x
+  %loc_left_paddle_y = load i32, i32* %left_paddle_y
+  %loc_left_paddle_width = load i32, i32* %left_paddle_width
+  %loc_left_paddle_height = load i32, i32* %left_paddle_height
+
+  %loc_right_paddle_x = load i32, i32* %right_paddle_x
+  %loc_right_paddle_y = load i32, i32* %right_paddle_y
+  %loc_right_paddle_width = load i32, i32* %right_paddle_width
+  %loc_right_paddle_height = load i32, i32* %right_paddle_height
+
+  call void @BeginDrawing()
+  call void @ClearBackground(i32 %rl_black)
+  ; left paddle
+  call void @DrawRectangle(i32 %loc_left_paddle_x, i32 %loc_left_paddle_y, i32 %loc_left_paddle_width, i32 %loc_left_paddle_height, i32 %paddle_col)
+  ; right paddle
+  call void @DrawRectangle(i32 %loc_right_paddle_x, i32 %loc_right_paddle_y, i32 %loc_right_paddle_width, i32 %loc_right_paddle_height, i32 %paddle_col)
+  call void @EndDrawing()
   br label %main_window_loop_check_conds
+
 
 main_window_loop_end:
   call void @CloseWindow()
