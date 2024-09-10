@@ -1,0 +1,8 @@
+
+# ignore all testing/misc files
+*
+
+!.gitignore
+!pong.llvm
+!README.md
+!build.sh
